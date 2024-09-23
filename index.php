@@ -8,6 +8,13 @@ $action = isset($_GET['action']) ? $_GET['action'] : 'read';
 $studentController = new StudentController();
 
 switch ($action) {
+    case 'register':
+        $studentController->register();
+        break;
+    case 'login':
+
+        $studentController->login();
+        break;
     case 'create':
         $studentController->create();
         break;

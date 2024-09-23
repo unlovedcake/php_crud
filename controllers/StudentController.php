@@ -10,28 +10,65 @@ class StudentController
         $this->studentModel = new StudentModel();
     }
 
-    // public function create()
-    // {
+
+    public function  register()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
-    //     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $_SESSION['form_data'] = [
+                'username' => $_POST['username'],
+                'password' => $_POST['password']
+            ];
+            $data = [
+                'username' => $_POST['username'],
+                'password' => $_POST['password'],
 
-    //         $name = $_POST['name'];
-    //         $email = $_POST['email'];
-    //         $this->studentModel->createStudent($name, $email);
-    //         header("Location: index.php");
-    //         exit();
-    //     }
-    //     include 'views/create_student.php';
-    // }
+            ];
+            $this->studentModel->register($data);
+            header("Location: index.php");
+            exit();
+        }
+        include 'views/register.php';
+    }
+
+    public function  login()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+
+            $_SESSION['form_data'] = [
+                'username' => $_POST['username'],
+                'password' => $_POST['password']
+            ];
+
+            $data = [
+                'username' => $_POST['username'],
+                'password' => $_POST['password'],
+
+            ];
+            $this->studentModel->login($data);
+
+            // header('Location: index.php?action=read&status=success');
+            exit();
+        }
+        include 'views/login.php';
+    }
 
     public function  create()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $targetDirectory = 'uploads/'; // Directory where uploaded images will be stored
             $targetFile = $targetDirectory . basename($_FILES['image']['name']);
+
             $uploadOk = 1;
             $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+
+            $uniqueImageName = pathinfo($targetFile, PATHINFO_FILENAME) . '_' . uniqid() . '.' . $imageFileType;
+
+            $targetFile =  $targetDirectory  . $uniqueImageName;
+
+
             // Check if image file is a actual image or fake image
             if (isset($_POST['submit'])) {
                 $check = getimagesize($_FILES['image']['tmp_name']);
@@ -50,6 +87,8 @@ class StudentController
             if (file_exists($targetFile)) {
 
                 $uploadOk = 0;
+
+                //unlink($targetFile);
                 $_SESSION['error_message']  = 'Sorry, file already exists.';
                 header('Location: index.php?action=create');
                 exit();
@@ -105,22 +144,111 @@ class StudentController
 
     public function read()
     {
-        $students = $this->studentModel->getAllStudents();
+        //$students = $this->studentModel->getAllStudents();
+
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = 5;
+        $offset = ($page - 1) * $limit;
+
+        $total_students = $this->studentModel->getTotalStudents();
+        $total_pages = ceil($total_students / $limit);
+
+        $students = $this->studentModel->getStudents($limit, $offset);
         include 'views/read_students.php';
     }
 
     public function update()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $targetDirectory = 'uploads/'; // Directory where uploaded images will be stored
+            $targetFile = $targetDirectory . basename($_FILES['new_image']['name']);
+
+            echo $_POST['id'];
+
+            if (basename($_FILES['new_image']['name'])  != '') {
+
+                $uploadOk = 1;
+                $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+
+                $uniqueImageName = pathinfo($targetFile, PATHINFO_FILENAME) . '_' . uniqid() . '.' . $imageFileType;
+
+                $targetFile =  $targetDirectory  . $uniqueImageName;
+
+
+
+
+                // Check if image file is a actual image or fake image
+                if (isset($_POST['submit'])) {
+                    $check = getimagesize($_FILES['new_image']['tmp_name']);
+                    if ($check !== false) {
+                        $uploadOk = 1;
+                    } else {
+
+                        $uploadOk = 0;
+                        $_SESSION['error_message'] = 'File is not an image.';
+                        header('Location: index.php?action=create');
+                        exit();
+                    }
+                }
+
+                // Check if file already exists
+                if (file_exists($targetFile)) {
+
+                    $uploadOk = 0;
+
+
+                    $_SESSION['error_message']  = 'Sorry, file already exists.';
+                    header('Location: index.php?action=create');
+                    exit();
+                }
+                // Check file size
+                if ($_FILES['new_image']['size'] > 500000) {
+                    echo 'Sorry, your file is too large.';
+                    $uploadOk = 0;
+                    $_SESSION['error_message'] = 'Sorry, your file is too large.';
+                    header('Location: index.php?action=create');
+                    exit();
+                }
+
+                // Allow certain file formats
+                if ($imageFileType != 'jpg' && $imageFileType != 'png' && $imageFileType != 'jpeg' && $imageFileType != 'gif') {
+
+                    $uploadOk = 0;
+
+                    $_SESSION['error_message'] = 'Sorry, only JPG, JPEG, PNG & GIF files are allowed.';
+                    header('Location: index.php?action=create');
+                    exit();
+                }
+
+                // Check if $uploadOk is set to 0 by an error
+                if ($uploadOk == 0) {
+
+                    $uploadOk = 0;
+
+                    $_SESSION['error_message'] = 'Sorry, your file was not uploaded.';
+                    header('Location: index.php?action=create');
+                    exit();
+
+                    // if everything is ok, try to upload file
+                } else {
+                    if (move_uploaded_file($_FILES['new_image']['tmp_name'], $targetFile)) {
+
+                        $imagePath = $targetFile;
+
+                        unlink($_POST['image_path']);
+                    }
+                }
+            }
             $id = $_POST['id'];
             $data = [
                 'id' => $_POST['id'],
                 'name' => $_POST['name'],
                 'email' => $_POST['email'],
-
+                'image_path' => basename($_FILES['new_image']['name'])  == '' ? $_POST['image_path'] : $imagePath,
             ];
 
             if ($this->studentModel->updateStudent($id,  $data)) {
+
                 header("Location: index.php");
                 exit();
             } else {
@@ -135,28 +263,6 @@ class StudentController
         }
         include 'views/update_student.php';
     }
-
-    // public function update()
-    // {
-    //     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    //         $id = $_POST['id'];
-    //         $name = $_POST['name'];
-    //         $email = $_POST['email'];
-    //         if ($this->studentModel->updateStudent($id, $name, $email)) {
-    //             header("Location: index.php");
-    //             exit();
-    //         } else {
-    //             $error = "Failed to update student.";
-    //         }
-    //     } else {
-    //         $id = $_GET['id'];
-    //         $student = $this->studentModel->getStudentById($id);
-    //         if (!$student) {
-    //             $error = "Student not found.";
-    //         }
-    //     }
-    //     include 'views/update_student.php';
-    // }
 
     public function delete()
     {
